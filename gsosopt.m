@@ -466,7 +466,7 @@ tinfo.sdpdata = sdpdata2;
 tinfo.sos2sdp.z = z;
 tinfo.sos2sdp.zremoved = zrem;
 tinfo.sos2sdp.dv2x = dv2x;
-tinfo.sos2sdp.Nfv = Nfv;
+% tinfo.sos2sdp.Nfv = Nfv;
 tinfo = orderfields(tinfo,{'feas','t','opts','sosdata','sos2sdp','sdpdata','sdpsol'});
 
 % Exit if sossimplify detected infeasibility
