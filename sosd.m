@@ -234,7 +234,6 @@ info.sdpdata = sdpdata;
 info.sos2sdp = sos2sdp;
 info.opts = opts;
 
-
 %---------------------------------------------------------------------
 % Solve the problem
 %---------------------------------------------------------------------
@@ -245,6 +244,7 @@ if strcmpi(opts.solver,'setup')
     sdpsol.solverinfo = [];
     info.sdpsol = sdpsol;
     info.obj = [];
+    info.duals = [];
     
     dopt =[];
     sossol = [];
@@ -300,6 +300,9 @@ elseif Ndv~=0
 else
     info.obj = double(obj);
 end
+
+% Dual variables aren't supported yet for kernel form
+info.duals = moments(zeros(1,Np));
 
 % Create sossol
 sossol = [];

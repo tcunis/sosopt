@@ -370,7 +370,7 @@ else
     info.feas = 1;
     info.tbnds = [tlb tub];    
 end
-info = orderfields(info,{'feas','tbnds','opts','sosdata','sos2sdp',...
+info = orderfields(info,{'feas','tbnds','duals','opts','sosdata','sos2sdp',...
     'sdpdata','sdpsol','sosfeasfh','iter'});
 
 return;
@@ -445,12 +445,15 @@ xold2xnew(tmpidx) = 1:length(tmpidx);
 dv2x = xold2xnew(dv2x);
 
 % Do SOS simplification
+pc2y  = info.sos2sdp.pc2y;
 z = info.sos2sdp.z;
+R = info.sos2sdp.R;
 Ncsosdv = length( info.sosdata.standform.sosdecvar.idx );
 if strcmpi(opts.simplify,'on');
-    [A,b,K,z,dv2x,Nfv,feas,zrem] = sospsimplify(A,b,K,z,dv2x,Ncsosdv);
+    [A,b,K,z,R,dv2x,pc2y,Nfv,feas,zrem,Rrem] = sospsimplify(A,b,K,z,R,dv2x,pc2y,Ncsosdv);
 else
     zrem = cell(length(K.s),1);
+    Rrem = {};
     feas = 1;
 end
 sdpdata2.A = A;
@@ -465,10 +468,13 @@ tinfo.t = ttry;
 tinfo.sdpdata = sdpdata2;
 
 tinfo.sos2sdp.z = z;
+tinfo.sos2sdp.R = R;
 tinfo.sos2sdp.zremoved = zrem;
+tinfo.sos2sdp.Rremoved = Rrem;
 tinfo.sos2sdp.dv2x = dv2x;
+tinfo.sos2sdp.pc2y = pc2y;
 % tinfo.sos2sdp.Nfv = Nfv;
-tinfo = orderfields(tinfo,{'feas','t','opts','sosdata','sos2sdp','sdpdata','sdpsol','iter'});
+tinfo = orderfields(tinfo,{'feas','t','duals','opts','sosdata','sos2sdp','sdpdata','sdpsol','iter'});
 
 % Exit if sossimplify detected infeasibility
 if feas

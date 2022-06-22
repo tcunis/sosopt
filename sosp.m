@@ -77,6 +77,8 @@ dv2xs = [1:Nfv  dv2xs+Nfv+Nlpv];
 decvars = [freevars; sosvars];
 Ndv = length(decvars);
 
+pc2ys = zeros(1,Nceq+1+Ncsos); % add one pointer for all LP constraints
+
 %---------------------------------------------------------------------
 % Define Objective and SOS/LP Constraints in Sedumi Primal Form
 %       min cs'*xs   s.t. As*xs = bs  ;  xs >= 0
@@ -108,12 +110,14 @@ Ndv = length(decvars);
 %         Q(:) = PSD slack matrices for SOS inequalities]
 %---------------------------------------------------------------------
 
+As = sparse(0,Nfv+Nlpv+Nsosv);
+bs = sparse(0,1);
+
 % Define Number of Free Decision Variables
 K.f = Nfv;
 
 % Define Equality constraints: A*d=b
-As = sparse(0,Nfv+Nlpv+Nsosv);
-bs = sparse(0,1);
+Re = cell(Nceq,1);
 for i1=1:Nceq
     % Get equality constraint data    
     s = standform.equality.data(i1);
@@ -136,12 +140,16 @@ for i1=1:Nceq
     
     % Express g0(x)+g(x)*d=0 as Ad*d = b
     if any(isdec)
-        [z,b,Aq,Ad] = gramconstraint(g0,g);
+        [z,b,Aq,Ad,R] = gramconstraint(g0,g);
         Ad = -Ad;
     else
-        [z,b,Aq] = gramconstraint(g0);
+        [z,b,Aq,R] = gramconstraint(g0);
     end
+    Re{i1} = R;
     Nconstr = length(b);
+    
+    % pointer to first SDP constraint
+    pc2ys(i1) = length(bs) + 1;
     
     % Stack A*d=b into As*xs=bs where the free dec. vars fv precede
     % the slack variables, y, which precede the SOS dec vars sv.
@@ -153,6 +161,7 @@ end
 
 % Define LP constraints: A*d+y=b, y>=0
 K.l = Nclp;
+Rl = {ones(Nclp,1)};
 if K.l>0
     s = standform.linprog.data;
     A = s{1};
@@ -176,6 +185,9 @@ if K.l>0
         error( LOCALerrstr(dterm,standform.linprog.idx(ridx)) )
     end
     
+    % pointer to first SDP constraint
+    pc2ys(Nceq+1) = length(bs) + 1;
+    
     % Stack A*d+y=b into As*xs=bs where the free dec. vars fv precede
     % the slack variables, y, which precede the SOS dec vars sv.
     tmp = sparse(Nclp,Nfv+Nlpv+Nsosv);
@@ -194,9 +206,11 @@ for i1=1:Ncsosdv
     K.s = [K.s length(s{1})];
 end
 
+ptr = Nfv+Nlpv+Nsosv;
+
 % Define SOS Inequality Constraints: Ad*d + Aq*Q(:) = b and Q>=0
 zi = cell(Ncsos,1);
-ptr = Nfv+Nlpv+Nsosv;
+Ri = cell(Ncsos,1);
 for i1=1:Ncsos
     s = standform.sos.data(i1);
     
@@ -220,13 +234,17 @@ for i1=1:Ncsos
     % Then convert the polynomial equality constraint into:
     %           Ad*d + Aq*Q(:) = b
     if any(isdec)
-        [z,b,Aq,Ad] = gramconstraint(g0,g);
+        [z,b,Aq,Ad,R] = gramconstraint(g0,g);
         Ad = -Ad;
     else
-        [z,b,Aq] = gramconstraint(g0);
+        [z,b,Aq,R] = gramconstraint(g0);
     end
-    zi{i1} = z;
+    zi{i1} = z;     % Gram basis
+    Ri{i1} = R;     % linear basis
     Nconstr = length(b);
+    
+    % pointer to first SDP constraint
+    pc2ys(Nceq+1+i1) = length(bs) + 1;
     
     % Stack Ad*d + Aq*Q(:) = b into As*xs=bs where the psd slack vars,
     % Q(:), follow the free dec vars fv, the LP slack vars y, and the
@@ -245,15 +263,17 @@ for i1=1:Ncsos
     ptr = size(As,2);
 end
 z = [zs;zi];
+R = [Re;Rl;Ri];
 
 %---------------------------------------------------------------------
 % Monomial and decision variable reduction
 %---------------------------------------------------------------------
 if strcmpi(opts.simplify,'on');
-    [As,bs,K,z,dv2xs,Nfv,feas,zrem] = ...
-        sospsimplify(As,bs,K,z,dv2xs,Ncsosdv);
+    [As,bs,K,z,R,dv2xs,pc2ys,Nfv,feas,zrem,Rrem] = ...
+        sospsimplify(As,bs,K,z,R,dv2xs,pc2ys,Ncsosdv);
 else
-    zrem = cell(length(K.s),1);
+    zrem = cell(size(z));
+    Rrem = cell(size(R));
     feas = 1;
 end
 
@@ -314,9 +334,12 @@ sdpdata.K = K;
 
 % sos2sdp: z, dv2x, dv2y, Nfv, Nlpv, orderidx
 sos2sdp.z = z;
+sos2sdp.R = R;
 sos2sdp.zremoved = zrem;
+sos2sdp.Rremoved = Rrem;
 sos2sdp.dv2x = dv2xs;
 sos2sdp.dv2y = [];
+sos2sdp.pc2y = pc2ys;
 
 numvar.free = Nfv;
 numvar.lpslack = Nlpv;
@@ -341,6 +364,7 @@ if strcmpi(opts.solver,'setup')
     sdpsol.solverinfo = [];
     info.sdpsol = sdpsol;
     info.obj = [];
+    info.duals = [];
     
     dopt =[];
     sossol = [];
@@ -405,6 +429,54 @@ elseif Ndv~=0
 else
     info.obj = double(obj);
 end
+
+% Create dual variables
+duals = moments(zeros(1,Np));
+sdpsol.s = sdpdata.c - sdpdata.A'*sdpsol.y; % slack variables for SDP
+for i1=1:Nceq       % Equality constraints s(x,d) == 0
+    % Note: if s(x,d) = g0(x) + g(x)*d = R(x)'(b + Ad*d), 
+    % the corresponding SDP constraint is -Ad*d = b
+    Rconstr = Re{i1};
+    Nconstr = length(Rconstr);
+    yconstr = -sdpsol.y(pc2ys(i1)+(0:Nconstr-1));
+    dual = moments(yconstr'*Rconstr);
+    
+    scl = scaling.equality(i1);
+    duals(standform.equality.idx(i1)) = scl\dual;
+end
+if Nclp > 0         % LP constraints s(d) >= 0
+    % Note: if s(d) = b + Ad*d, 
+    % the corresponding SDP constraint -Ad*d + y = b, y >= 0
+    Nconstr = length(standform.linprog.idx);
+    yconstr = -sdpsol.y(pc2ys(Nceq+1)+(0:Nconstr-1));
+    dual = moments(yconstr);
+    
+    duals(standform.linprog.idx) = dual;
+end
+ptr = Nfv+Nlpv;
+for i1=1:Ncsosdv    % SOS variable constraint s(x,D) >= 0
+    % Note: if s(x,D) = z(x)'*D*z(x), the SDP constraint is D >= 0
+    zvar = z{i1};
+    Nvar = length(zvar);
+    Qvar = mat(sdpsol.s(ptr+(1:Nvar^2)),Nvar);
+    dual = moments(zvar'*Qvar*zvar);
+    
+    duals(standform.sosdecvar.idx(i1)) = dual;
+    
+    ptr = ptr + Nvar^2;
+end
+for i1=1:Ncsos      % SOS inequality constraints s(x,d) >= 0
+    % Note: if s(x,d) = g0(x) + g(x)*d = R(x)'*(b + Ad*d),
+    % the corresponding SDP constraint is -Ad*d + Aq*Q = b
+    Rconstr = R{Nceq+1+i1};
+    Nconstr = length(Rconstr);
+    yconstr = -sdpsol.y(pc2ys(Nceq+1+i1)+(0:Nconstr-1));
+    dual = moments(yconstr'*Rconstr);
+    
+    scl = scaling.sos(i1);
+    duals(standform.sos.idx(i1)) = scl\dual;
+end
+info.duals = duals;
 
 % Create sossol
 sossol = [];

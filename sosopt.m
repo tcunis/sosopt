@@ -262,7 +262,7 @@ end
 %---------------------------------------------------------------------
 feas = checkfeas(info,sossol,opts);
 info.feas = feas;
-info = orderfields(info,{'feas','obj','opts','sosdata','sos2sdp','sdpdata','sdpsol'});
+info = orderfields(info,{'feas','obj','duals','opts','sosdata','sos2sdp','sdpdata','sdpsol'});
 if feas==0
     % Infeasible solution
     info.obj = +inf;

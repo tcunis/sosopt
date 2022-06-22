@@ -1,5 +1,5 @@
-function [A,b,K,z,dv2x,Nfv,feas,zrem] = sospsimplify(A,b,K,z,dv2x,Nsosvarc)
-% function [A,b,K,z,dv2x,Nfv,feas,zrem] = sospsimplify(A,b,K,z,dv2x,Nsosvarc)
+function [A,b,K,z,R,dv2x,pc2y,Nfv,feas,zrem,Rrem] = sospsimplify(A,b,K,z,R,dv2x,pc2y,Nsosvarc)
+% function [A,b,K,z,R,dv2x,pc2y,Nfv,feas,zrem,Rrem] = sospsimplify(A,b,K,z,R,dv2x,pc2y,Nsosvarc)
 %
 % DESCRIPTION 
 %   This function performs a simplification procedure on the SOS problem.
@@ -144,9 +144,22 @@ dv2x(idx2) = dv2x(idx2)-Nremf;
 % Remove any constraints of the form 0=0 
 % XXX -- We need a tolerance here.  How should we choose tol?
 tol = 1e-9;
-ridx = find( sum(A~=0,2)==0 & abs(b)<max(tol,tol*max(abs(b))) );
+ridx = ( sum(A~=0,2)==0 & abs(b)<max(tol,tol*max(abs(b))) );
 A(ridx,:) = [];
 b(ridx) = [];
+
+% remove monomials associated with removed constraints
+Rrem = cell(size(R));
+tmpc2y = pc2y;
+for i1=1:length(R)
+    Nconstr = length(R{i1});
+    tmpidx = find( ridx(tmpc2y(i1)+(0:Nconstr-1)) );
+    Rrem{i1} = R{i1}(tmpidx);
+    R{i1}(tmpidx) = [];
+    % shift pointers
+    idx = (pc2y >= tmpc2y(i1)+Nconstr);
+    pc2y(idx) = pc2y(idx) - nnz(tmpidx);
+end
 
 % Check for infeasible problems of the form 0 = bi where bi is not equal 
 % to zero (Our simplify code should flag infeasible problems because
