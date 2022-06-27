@@ -76,9 +76,7 @@ classdef sosoptions
         % 'setup' is an undocumented call used by gsosopt
         function opt = set.solver(opt,value)
             % XXX Currently working: Sedumi, CSDP, SDPT3, SDPLR, Setup,
-            AllowableVal = {'sedumi'; 'sdpam'; 'csdp'; 'dsdp';...
-                'sdpt3';'sdplr'; 'mosek'; 'setup'};
-            if ischar(value) && any( strcmp(value,AllowableVal) )
+            if ischar(value)
                 opt.solver = value;
             else
                 errstr1 = 'solver can be ''sedumi'', ''sdpam'', ''csdp''';

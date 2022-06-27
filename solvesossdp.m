@@ -48,38 +48,20 @@ solver = opts.solver;
 solveropts = opts.solveropts;
 
 % Solve SDP
-if strcmpi(solver,'dsdp')
-    [x,y,solverinfo] = sedumi2dsdp(A,b,c,K,solveropts);
-elseif strcmpi(solver,'csdp')
-    [x,y,solverinfo] = sedumi2csdp(A,b,c,K,solveropts);
-elseif strcmpi(solver,'sdpam')
-    [x,y,solverinfo] = sedumi2sdpam(A,b,c,K,solveropts);
-elseif strcmpi(solver,'sdplr')
-    [x,y,solverinfo] = sedumi2sdplr(A,b,c,K,solveropts);
-elseif strcmpi(solver,'sdpt3')
-    %     if length(c)<= length(b)
-    %         % 11/11/09 -- Ufuk found that sosopt(x^2) causes an error. This
-    %         % is because sedumi errors if length(c) <= length(b). Add dummy
-    %         % variables for now to catch this case.
-    %         Npad = length(b)-length(c)+1;
-    %         cpad = [c; zeros(Npad,1)];
-    %         Apad = [A  zeros(size(A,1),Npad)];
-    %         Kpad = K;
-    %         Kpad.s = [Kpad.s ones(1,Npad)];
-    %         [xpad,y,solverinfo] = sedumi2sdpt3(Apad,b,cpad,Kpad,solveropts);
-    %         x = xpad(1:end-Npad);
-    %     else
-    %         [x,y,solverinfo] = sedumi2sdpt3(A,b,c,K,solveropts);
-    %     end
+if exist(['sedumi2' solver], 'file')
+    % call requested solver if conversion from Sedumi is supported
     
     % XXX Sedumi allows for non-symmetric constraints, e.g. introduce
     % a 2-by-2 Q with a PSD constraint and then add an equality constraint
     % Q(1,2) = 4.  SDPT3 gives a warning and converts this to a
     % symmetric constraint.
-    [x,y,solverinfo] = sedumi2sdpt3(A,b,c,K,solveropts);
-elseif strcmpi(solver,'mosek')
-    [x,y,solverinfo] = sedumi2mosek(A,b,c,K,solveropts);
-elseif strcmpi(solver,'sedumi')
+    [x,y,solverinfo] = feval(['sedumi2' solver],A,b,c,K,solveropts);
+    return
+end
+
+% else:
+switch (solver)
+case 'sedumi'
     %if ~isfield(solveropts,'eps')
     %    solveropts.eps = 1e-9;
     %end
@@ -127,8 +109,12 @@ elseif strcmpi(solver,'sedumi')
         solverinfo.timing = 0;
         solverinfo.cpusec = 0;
     end
-elseif strcmpi(solver,'setup')
+    
+case 'setup'
     x=[]; y=[]; solverinfo=[];
-else
+    
+otherwise
     error(['Solver ' solver ' is not available']);
+end
+
 end
