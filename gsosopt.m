@@ -209,6 +209,7 @@ info.opts = opts;
 info.sosdata.obj = t;
 info.sosfeasfh = @(info,ttry) LOCALsosfeas(info,ttry,dbarprefix);
 info.tbnds = [];
+info.iter  = [];
 info = rmfield(info,'obj');
 
 
@@ -321,11 +322,9 @@ end
 %------------------------------------------------------------------
 % Perform Bisection
 %------------------------------------------------------------------
-go = 1;  % Ensure at least one pass through
+info.iter = 0;  % Ensure at least one pass through
 %while (tub-tlb>absbistol && tub-tlb>relbistol*tlb) || (go==1)
-while (tub-tlb>absbistol && tub-tlb>relbistol*abs(tlb)) || (go==1)
-    go = 0;
-    
+while (tub-tlb>absbistol && tub-tlb>relbistol*abs(tlb)) || ~info.iter
     % Set gamma level for feasibility problem
     ttry = (tub+tlb)/2;
     
@@ -359,6 +358,8 @@ while (tub-tlb>absbistol && tub-tlb>relbistol*abs(tlb)) || (go==1)
     else
         tlb = ttry;
     end
+    
+    info.iter = info.iter+1;
 end
 
 % Set output variable with upper/lower bounds
@@ -370,7 +371,7 @@ else
     info.tbnds = [tlb tub];    
 end
 info = orderfields(info,{'feas','tbnds','opts','sosdata','sos2sdp',...
-    'sdpdata','sdpsol','sosfeasfh'});
+    'sdpdata','sdpsol','sosfeasfh','iter'});
 
 return;
 
@@ -467,7 +468,7 @@ tinfo.sos2sdp.z = z;
 tinfo.sos2sdp.zremoved = zrem;
 tinfo.sos2sdp.dv2x = dv2x;
 % tinfo.sos2sdp.Nfv = Nfv;
-tinfo = orderfields(tinfo,{'feas','t','opts','sosdata','sos2sdp','sdpdata','sdpsol'});
+tinfo = orderfields(tinfo,{'feas','t','opts','sosdata','sos2sdp','sdpdata','sdpsol','iter'});
 
 % Exit if sossimplify detected infeasibility
 if feas
