@@ -157,7 +157,7 @@ for i1=1:length(R)
     Rrem{i1} = R{i1}(tmpidx);
     R{i1}(tmpidx) = [];
     % shift pointers
-    idx = (pc2y >= tmpc2y(i1)+Nconstr);
+    idx = (tmpc2y >= tmpc2y(i1)+Nconstr);
     pc2y(idx) = pc2y(idx) - nnz(tmpidx);
 end
 
