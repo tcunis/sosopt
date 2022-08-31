@@ -12,7 +12,7 @@ switch L(1).type
         end
 
     otherwise
-        builtin('subsref',f,L);
+        b = builtin('subsref',f,L);
 end
 
 end
