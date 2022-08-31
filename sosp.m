@@ -469,7 +469,7 @@ for i1=1:Ncsos      % SOS inequality constraints s(x,d) >= 0
     % Note: if s(x,d) = g0(x) + g(x)*d = R(x)'*(b + Ad*d),
     % the corresponding SDP constraint is -Ad*d + Aq*Q = b
     Rconstr = R{Nceq+1+i1};
-    Nconstr = length(Rconstr);
+    Nconstr = size(Rconstr,1);
     yconstr = -sdpsol.y(pc2ys(Nceq+1+i1)+(0:Nconstr-1));
     dual = moments(yconstr'*Rconstr);
     
