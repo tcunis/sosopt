@@ -5,7 +5,7 @@ function n = dnorm2(f)
 R = monomials(f);
 
 % integrate Gram matrix
-RR = pnorm2(R');
+RR = properint(kron(R,R'));
 
 % project onto basis
 c = poly2basis(f.poly, R);
