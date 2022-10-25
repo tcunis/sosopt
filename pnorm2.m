@@ -14,6 +14,6 @@ function s = pnorm2(a)
 
 % 06/10/2022 TC  Initial Coding
 
-s = properint(a'*a);
+s = trace(outer_pnorm2(a));
 
 end
