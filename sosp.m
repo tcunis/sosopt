@@ -364,7 +364,7 @@ if strcmpi(opts.solver,'setup')
     sdpsol.solverinfo = [];
     info.sdpsol = sdpsol;
     info.obj = [];
-    info.duals = [];
+    info.duals = moments(zeros(1,Np));
     
     dopt =[];
     sossol = [];
