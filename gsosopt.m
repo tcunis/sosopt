@@ -227,6 +227,9 @@ tub = inf;
 Ntmax = length(tmax);
 if Ntmax == 1
     tub = tmax;
+elseif Ntmax == length(tmin)
+    % undocumented: initial guess for bisection
+    tub = max(tmax);
 else
     % Undocumented: If tmax is a vector then the code below will try to
     % check all the values listed in tmax until it finds a feasible
@@ -279,6 +282,9 @@ end
 Ntmin = length(tmin);
 if Ntmin ==1
     tlb = tmin;
+elseif Ntmin == Ntmax
+    % undocumented: initial guess for bisection
+    tlb = min(tmin);
 elseif ~isequal(tmin,tlb)
     % Undocumented: If tmin is a vector then the code below will try to
     % check all the values listed in tmin until it finds an infeasible
@@ -319,14 +325,21 @@ elseif ~isequal(tmin,tlb)
     end
 end
 
+if Ntmin == Ntmax
+    % undocumented: initial guess
+    tnew = (max(tmin) + min(tmax))/2;
+else
+    tnew = (tlb+tub)/2;
+end
+
 %------------------------------------------------------------------
 % Perform Bisection
 %------------------------------------------------------------------
-info.iter = 0;  % Ensure at least one pass through
+info.iter = [];  % Ensure at least one pass through
 %while (tub-tlb>absbistol && tub-tlb>relbistol*tlb) || (go==1)
-while (tub-tlb>absbistol && tub-tlb>relbistol*abs(tlb)) || ~info.iter
+while (tub-tlb>absbistol && tub-tlb>relbistol*abs(tlb)) || isempty(info.iter)
     % Set gamma level for feasibility problem
-    ttry = (tub+tlb)/2;
+    ttry = tnew;
     
     % Solve feasibility problem
     if nargout==3
@@ -359,7 +372,11 @@ while (tub-tlb>absbistol && tub-tlb>relbistol*abs(tlb)) || ~info.iter
         tlb = ttry;
     end
     
-    info.iter = info.iter+1;
+%     info.iter = info.iter+1;
+    info.iter = [info.iter, struct('ttry',ttry,'tmin',tlb,'tmax',tub,'info',tinfo)];
+
+    % bisection
+    tnew = (tub+tlb)/2;
 end
 
 % Set output variable with upper/lower bounds
